@@ -8,18 +8,132 @@ output:
 
 ## Loading and preprocessing the data
 
+```{r}
+library("knitr")
+activity <- read.csv("activity.csv")
+activity$date <- as.Date(as.character(activity$date),"%Y-%m-%d")
+```
 
 
 ## What is mean total number of steps taken per day?
+```{r}
+stepsDaily<- with(activity,tapply(activity$steps,activity$date,sum))
+hist(stepsDaily)
+```
 
+Mean steps by day
+```{r}
+data.frame(with(activity,tapply(activity$steps,activity$date,mean)))
+```
 
+Median steps by day
+```{r}
+data.frame(with(activity,tapply(activity$steps,activity$date,median)))
+```
 
 ## What is the average daily activity pattern?
 
+Average number of steps taken, averaged across all days (y-axis)
+```{r}
+byMinuteInterval <- with(activity,tapply(activity$steps,activity$interval,mean,na.rm=TRUE))
+plot(byMinuteInterval,type='l')
+```
 
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r}
+max(byMinuteInterval)
+```
+
+Knowing the maximum value, we look for the minute interval.
+```{r}
+maxByMinute<-byMinuteInterval[byMinuteInterval>206]
+```
+
+The minute interval is `r names(maxByMinute)`.
 
 ## Imputing missing values
 
+```{r}
+total_nas <- sum(is.na(activity[,1]))
+```
+The total number NA steps data is `r total_nas`
+
+Filling `r NA` values with the *mean* by minute interval.
+
+```{r}
+for (i in 1:length(activity$steps)) {
+    if(is.na(activity$steps[i])){
+        boolInterval <- activity$interval[i]==as.numeric(as.character(names(byMinuteInterval)));
+        activityFilled[i,1]<-byMinuteInterval[boolInterval]
+    } else {
+        activityFilled[i,1]<-activity$steps[i]
+    }
+    if(exists("boolInterval")) rm(boolInterval)
+}
+```
+
+Creating a new dataset that is equal to the original dataset but with the missing data filled in.
+
+```{r}
+activityFilled2<-data.frame()
+activityFilled2<-cbind(as.double(activityFilled[,1]),as.character(activity$date),as.integer(activity$interval))
+colnames(activityFilled2)<-colnames(activity)
+activityFilled2<-as.data.frame(activityFilled2)
+```
+
+Histogram of steps by day with the filled data.
+
+```{r}
+activityFilled2$date <- as.Date(as.character(activityFilled2$date),"%Y-%m-%d")
+rm(stepsDaily)
+stepsDaily<- with(activityFilled2,tapply(as.numeric(activityFilled2$steps),activityFilled2$date,sum))
+hist(stepsDaily)
+```
+
+Mean steps by day with the filled data.
+
+```{r}
+data.frame(with(activityFilled2,tapply(as.numeric(activityFilled2$steps),activityFilled2$date,mean)))
+```
+
+Median steps by day with the filled data.
+
+```{r}
+data.frame(with(activityFilled2,tapply(as.numeric(activityFilled2$steps),activityFilled2$date,median)))
+```
+RJOF: Do these values differ from the estimates from the first part of the assignment?
+
+RJOF: What is the impact of imputing missing data on the estimates of the total daily number of steps?
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+New variable indicating if is *weekday* or *weekend*
+
+```{r}
+activityFilled2$w <- ifelse((weekdays(activityFilled2$date) == "Saturday") | (weekdays(activityFilled2$date) == "Sunday"), "weekend", "weekday")
+```
+
+Subseting for *weekdays* and *weekends*
+
+```{r}
+activityWeekend <- activityFilled2[activityFilled2$w=='weekend',]
+activityWeekday <- activityFilled2[activityFilled2$w=='weekday',]
+```
+
+Generating the mean by minutes interval.
+
+```{r}
+byMinuteIntervalWeekend <- with(activityWeekend,tapply(as.numeric(activityWeekend$steps),activityWeekend$interval,mean))
+
+byMinuteIntervalWeekday <- with(activityWeekday,tapply(as.numeric(activityWeekday$steps),activityWeekday$interval,mean))
+```
+
+Ploting.
+
+```{r}
+par(mfcol=c(2,1))
+plot(byMinuteIntervalWeekend,type='l',xlab='weekend')
+plot(byMinuteIntervalWeekday,type='l',xlab='weekday')
+```
